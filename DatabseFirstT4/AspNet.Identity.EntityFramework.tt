@@ -134,6 +134,10 @@ namespace <#= entityMappingNamespace #>
                     m.MapRightKey("<#= ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME #>");
                 });
 
+			this.HasMany(t => t.Claims)
+                .WithRequired(<#= table == IDENTITY_USER_CLASS_NAME ? "c => c.User" : String.Empty #>)
+                .Map(m => m.MapKey("<#= USER_CLAIM_TABLE_USER_ID_FK_COL_NAME #>"));
+
 			OtherMap();
         }
 
