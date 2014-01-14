@@ -1,0 +1,936 @@
+﻿<#@ template debug="true" hostspecific="true" language="C#" #>
+<#@ include file="TemplateFilemanager.CS.ttinclude" #>
+<#@ assembly name="System.Core" #>
+<#@ import namespace="System.IO" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Text" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ output extension=".cs" #>
+
+<#
+    #region Get Default Namespace For Code
+
+    var hostServiceProvider = (IServiceProvider) Host;
+    var dte = (DTE) hostServiceProvider.GetService(typeof (DTE));
+    var activeSolutionProjects = (Array) dte.ActiveSolutionProjects;
+    var currentProject = (Project) activeSolutionProjects.GetValue(0);
+    var defaultNamespace = currentProject.Properties.Item("DefaultNamespace").Value;
+    var templateDir = Path.GetDirectoryName(Host.TemplateFile);
+    var currentProjFullPath = currentProject.Properties.Item("FullPath").Value.ToString();
+    currentProjFullPath = currentProjFullPath.EndsWith("\\")
+        ? currentProjFullPath.Substring(0, currentProjFullPath.Length - 1)
+        : currentProjFullPath;
+    var subNamespace = templateDir.Replace(currentProjFullPath, string.Empty).Replace("\\", ".");
+    var fileNamespace = string.Concat(defaultNamespace, subNamespace);
+
+    #endregion
+
+	/**************************************************
+	Const Definitions
+	***************************************************/
+	//IdentityUser
+	const string USER_TABLE_NAME = "AspNetUsers";
+    const string USER_TABLE_ID_COL_NAME = "Id";
+    const string USER_TABLE_USER_NAME_COL_NAME = "UserName";
+	const string USER_TABLE_PASSWORDHASH_COL_NAME = "PasswordHash";
+	const string USER_TABLE_SECURITYSTAMP_COL_NAME = "SecurityStamp";
+	const string USER_TABLE_DISCRIMINATOR_COL_NAME = "Discriminator";
+    const string IDENTITY_USER_CLASS_NAME = "IdentityUser";
+	//IdentityUser Mapping
+	const string ROLE_USER_RELATIONSHIP_TABLE_NAME = "AspNetUserRoles";
+	const string ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME = "UserId";
+	const string ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME = "RoleId";
+	//IdentityUserClaim
+	const string USER_CLAIM_TABLE_NAME = "AspNetUserClaims";
+    const string USER_CLAIM_TABLE_ID_COL_NAME = "Id";
+    const string USER_CLAIM_TABLE_CLAIM_TYPE_COL_NAME = "ClaimType";
+    const string USER_CLAIM_TABLE_CLAIM_VALUE_COL_NAME = "ClaimValue";
+    const string USER_CLAIM_TABLE_USER_ID_FK_COL_NAME = "UserId";
+	//IdentityUserLogin
+	const string USER_LOGIN_TABLE_NAME = "AspNetUserLogins";
+    const string USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_NAME = "LoginProvider";
+    const string USER_LOGIN_TABLE_PROVIDER_KEY_COL_NAME = "ProviderKey";
+    const string USER_LOGIN_TABLE_USER_ID_COL_NAME = "UserId";
+	//IdentityRole
+	const string ROLE_TABLE_NAME = "AspNetRoles";
+    const string ROLE_TABLE_ID_COL_NAME = "Id";
+    const string ROLE_TABLE_NAME_COL_NAME = "Name";
+
+	//Path
+    const string ENTITY_SUB_NAMESPACE = "Models";
+    const string ENTITY_MAPPING_SUB_NAMESPACE = "Models.Mapping";
+
+    var entityNamespace = string.Format("{0}.{1}", defaultNamespace, ENTITY_SUB_NAMESPACE);
+	var entityMappingNamespace = string.Format("{0}.{1}", defaultNamespace, ENTITY_MAPPING_SUB_NAMESPACE);
+
+	var manager = TemplateFileManager.Create(this);
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+	/***************************************************
+	For IdentityUser's Table
+	***************************************************/
+    manager.StartNewFile(USER_TABLE_NAME + ".IdentityUser.cs");
+#>
+using System;
+using Microsoft.AspNet.Identity.EntityFramework;
+
+namespace <#= entityNamespace #>
+{
+	public partial class <#= GetEntityNameFromTableName(USER_TABLE_NAME) #> : <#= IDENTITY_USER_CLASS_NAME #>
+	{
+		
+	}
+}
+<#
+	/***************************************************
+	End For IdentityUser's Table
+	***************************************************/
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+	/***************************************************
+	For IdentityUser's Table Mapping
+	***************************************************/
+    foreach (var table in new[] {USER_TABLE_NAME, IDENTITY_USER_CLASS_NAME})
+    {
+        manager.StartNewFile(table + ".Map.cs");
+#>
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Data.Entity.ModelConfiguration;
+using Microsoft.AspNet.Identity.EntityFramework;
+
+namespace <#= entityMappingNamespace #>
+{
+    public partial class <#= GetEntityNameFromTableName(table) #>Map : EntityTypeConfiguration<<#= GetEntityNameFromTableName(table) #>>
+    {
+        public <#= GetEntityNameFromTableName(table) #>Map()
+        {
+            // Primary Key
+            this.HasKey(t => t.Id);
+
+            // Properties
+            this.Property(t => t.Id)
+                .IsRequired()
+                .HasMaxLength(128);
+			this.Property(t => t.UserName)
+                .IsRequired()
+                .HasMaxLength(256);
+
+            // Table & Column Mappings
+            this.ToTable("<#= USER_TABLE_NAME #>");
+            this.Property(t => t.Id).HasColumnName("<#= USER_TABLE_ID_COL_NAME #>");
+            this.Property(t => t.UserName).HasColumnName("<#= USER_TABLE_USER_NAME_COL_NAME #>");
+            this.Property(t => t.PasswordHash).HasColumnName("<#= USER_TABLE_PASSWORDHASH_COL_NAME #>");
+            this.Property(t => t.SecurityStamp).HasColumnName("<#= USER_TABLE_SECURITYSTAMP_COL_NAME #>");            
+
+            // Relationships
+            this.HasMany(t => t.Roles)
+                .WithMany()
+                .Map(m =>
+                {
+                    m.ToTable("<#= ROLE_USER_RELATIONSHIP_TABLE_NAME #>");
+                    m.MapLeftKey("<#= ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME #>");
+                    m.MapRightKey("<#= ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME #>");
+                });
+
+			OtherMap();
+        }
+
+		partial void OtherMap();
+    }
+}
+<#
+    }
+
+    /***************************************************
+	Ene For IdentityUser's Table Mapping
+	***************************************************/
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+	
+	/***************************************************
+	For IdentityUserClaim's Table Mapping
+	***************************************************/
+	manager.StartNewFile(USER_CLAIM_TABLE_NAME + ".Map.cs");
+#>
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Data.Entity.ModelConfiguration;
+using Microsoft.AspNet.Identity.EntityFramework;
+
+namespace <#= entityMappingNamespace #>
+{
+    public class <#= GetEntityNameFromTableName(USER_CLAIM_TABLE_NAME) #>Map : EntityTypeConfiguration<IdentityUserClaim>
+    {
+        public <#= GetEntityNameFromTableName(USER_CLAIM_TABLE_NAME) #>Map()
+        {
+            // Primary Key
+            this.HasKey(t => t.Id);
+
+            // Table & Column Mappings
+            this.ToTable("<#= USER_CLAIM_TABLE_NAME #>");
+            this.Property(t => t.Id).HasColumnName("<#= USER_CLAIM_TABLE_ID_COL_NAME #>");
+            this.Property(t => t.ClaimType).HasColumnName("<#= USER_CLAIM_TABLE_CLAIM_TYPE_COL_NAME #>");
+            this.Property(t => t.ClaimValue).HasColumnName("<#= USER_CLAIM_TABLE_CLAIM_VALUE_COL_NAME #>");            
+
+            // Relationships
+            this.HasRequired(t => t.User)
+                .WithMany(t => t.Claims).Map(
+                    m => m.MapKey("<#= USER_CLAIM_TABLE_USER_ID_FK_COL_NAME #>"));
+
+        }
+    }
+}
+<#
+	/***************************************************
+	End For IdentityUserClaim's Table Mapping
+	***************************************************/
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+	/***************************************************
+	For IdentityUserLogin's Table Mapping
+	***************************************************/
+	manager.StartNewFile(USER_LOGIN_TABLE_NAME + ".Map.cs");
+#>
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Data.Entity.ModelConfiguration;
+using Microsoft.AspNet.Identity.EntityFramework;
+
+namespace <#= entityMappingNamespace #>
+{
+    public class <#= GetEntityNameFromTableName(USER_LOGIN_TABLE_NAME) #>Map : EntityTypeConfiguration<IdentityUserLogin>
+    {
+        public <#= GetEntityNameFromTableName(USER_LOGIN_TABLE_NAME) #>Map()
+        {
+            // Primary Key
+            this.HasKey(t => new { t.UserId, t.LoginProvider, t.ProviderKey });
+
+            // Properties
+            this.Property(t => t.UserId)
+                .IsRequired()
+                .HasMaxLength(128);
+
+            this.Property(t => t.LoginProvider)
+                .IsRequired()
+                .HasMaxLength(128);
+
+            this.Property(t => t.ProviderKey)
+                .IsRequired()
+                .HasMaxLength(128);
+
+            // Table & Column Mappings
+            this.ToTable("<#= USER_LOGIN_TABLE_NAME #>");
+            this.Property(t => t.UserId).HasColumnName("<#= USER_LOGIN_TABLE_USER_ID_COL_NAME #>");
+            this.Property(t => t.LoginProvider).HasColumnName("<#= USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_NAME #>");
+            this.Property(t => t.ProviderKey).HasColumnName("<#= USER_LOGIN_TABLE_PROVIDER_KEY_COL_NAME #>");
+
+            // Relationships
+            this.HasRequired(t => t.User)
+                .WithMany(t => t.Logins)
+                .HasForeignKey(d => d.UserId);
+        }
+    }
+}
+<#
+	/***************************************************
+	End For IdentityUserLogin's Table Mapping
+	***************************************************/
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+	/***************************************************
+	For IdentityRole's Table Mapping
+	***************************************************/
+	manager.StartNewFile(ROLE_TABLE_NAME + ".Map.cs");
+#>
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Data.Entity.ModelConfiguration;
+using Microsoft.AspNet.Identity.EntityFramework;
+
+namespace <#= entityMappingNamespace #>
+{
+    public class <#= GetEntityNameFromTableName(ROLE_TABLE_NAME) #>Map : EntityTypeConfiguration<IdentityRole>
+    {
+        public <#= GetEntityNameFromTableName(ROLE_TABLE_NAME) #>Map()
+        {
+            // Primary Key
+            this.HasKey(t => t.Id);
+
+            // Properties
+            this.Property(t => t.Id)
+                .IsRequired()
+                .HasMaxLength(128);
+
+            this.Property(t => t.Name)
+                .IsRequired();
+
+            // Table & Column Mappings
+            this.ToTable("<#= ROLE_TABLE_NAME #>");
+            this.Property(t => t.Id).HasColumnName("<#= ROLE_TABLE_ID_COL_NAME #>");
+            this.Property(t => t.Name).HasColumnName("<#= ROLE_TABLE_NAME_COL_NAME #>");			
+        }
+    }
+}
+<#
+	/***************************************************
+	End For IdentityRole's Table Mapping
+	***************************************************/
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+	/***************************************************
+	For IdentityUserRole's Table Mapping
+	***************************************************/
+	manager.StartNewFile(ROLE_USER_RELATIONSHIP_TABLE_NAME + ".Map.cs");
+#>
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Data.Entity.ModelConfiguration;
+using Microsoft.AspNet.Identity.EntityFramework;
+
+namespace <#= entityMappingNamespace #>
+{
+    public class <#= GetEntityNameFromTableName(ROLE_USER_RELATIONSHIP_TABLE_NAME) #>Map : EntityTypeConfiguration<IdentityUserRole>
+    {
+        public <#= GetEntityNameFromTableName(ROLE_USER_RELATIONSHIP_TABLE_NAME) #>Map()
+        {
+            // Primary Key
+            this.HasKey(t => new { t.UserId, t.RoleId });
+
+            // Table & Column Mappings
+            this.ToTable("<#= ROLE_USER_RELATIONSHIP_TABLE_NAME #>");
+            this.Property(t => t.UserId).HasColumnName("<#= ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME #>");
+            this.Property(t => t.RoleId).HasColumnName("<#= ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME #>");
+
+			//Relationship
+			this.HasRequired(t => t.User).WithMany(u => u.Roles).HasForeignKey(d => d.UserId);
+            this.HasRequired(t => t.Role).WithMany().HasForeignKey(d => d.RoleId);
+        }
+    }
+}
+<#
+
+	/***************************************************
+	End For IdentityUserRole's Table Mapping
+	***************************************************/
+
+//----------------------------------------------------------------------------------------------------------------------------------------------
+	//Prepare Folder
+    const string REVERSE_ENGINEER_CODE_FIRST = "ReverseEngineerCodeFirst";
+    var reverseEngineerCodeFirstFolder = GetOrCreateSubFolder(GetOrCreateSubFolder(currentProject, "CodeTemplates"), REVERSE_ENGINEER_CODE_FIRST);
+    var reverseEngineerCodeFirstFolderFullPath = reverseEngineerCodeFirstFolder.FileNames[0];
+    const string TMP_SUFFIX = ".TMP";
+
+	/***************************************************
+	For Context.tt
+	***************************************************/
+
+    const string CONTEXT_TT_FILE_NAME = "Context.tt";
+    manager.StartNewFile(CONTEXT_TT_FILE_NAME + TMP_SUFFIX, "", REVERSE_ENGINEER_CODE_FIRST);
+#>
+\<#@ template hostspecific="true" language="C#" \#>
+\<#@ include file="EF.Utility.CS.ttinclude" \#>
+\<#@ output extension=".cs" \#>\<#
+
+    var efHost = (EfTextTemplateHost)Host;
+    var code = new CodeGenerationTools(this);
+\#>
+using System.Data.Entity;
+using System.Data.Entity.Infrastructure;
+using Microsoft.AspNet.Identity.EntityFramework;
+using <#= entityMappingNamespace #>;
+
+namespace <#= entityNamespace #>
+{
+    public partial class \<#= efHost.EntityContainer.Name \#> : DbContext
+    {
+        static \<#= efHost.EntityContainer.Name \#>()
+        {
+            Database.SetInitializer<\<#= efHost.EntityContainer.Name \#>>(null);
+        }
+
+        public \<#= efHost.EntityContainer.Name \#>()
+            : base("Name=\<#= efHost.EntityContainer.Name \#>")
+        {
+        }
+
+\<#
+    foreach (var set in efHost.EntityContainer.BaseEntitySets.OfType<EntitySet>())
+    {
+        switch (set.ElementType.Name)
+        {
+			case "<#= GetEntityNameFromTableName(USER_CLAIM_TABLE_NAME) #>":
+\#>
+		public DbSet<IdentityUserClaim> \<#= set.Name \#> { get; set; }
+\<#
+                break;
+			case "<#= GetEntityNameFromTableName(USER_LOGIN_TABLE_NAME) #>":
+\#>
+		public DbSet<IdentityUserLogin> \<#= set.Name \#> { get; set; }
+\<#
+                break;
+			case "<#= GetEntityNameFromTableName(ROLE_TABLE_NAME) #>":
+\#>
+		public DbSet<IdentityRole> \<#= set.Name \#> { get; set; }
+\<#
+                break;
+			case "<#= GetEntityNameFromTableName(ROLE_USER_RELATIONSHIP_TABLE_NAME) #>":
+                break;
+			default:
+\#>
+		public DbSet<\<#= set.ElementType.Name \#>> \<#= set.Name \#> { get; set; }
+\<#
+                break;
+        }
+    }
+\#>
+
+        protected override void OnModelCreating(DbModelBuilder modelBuilder)
+        {
+\<#
+    foreach (var set in efHost.EntityContainer.BaseEntitySets.OfType<EntitySet>())
+    {
+\#>
+            modelBuilder.Configurations.Add(new \<#= set.ElementType.Name \#>Map());
+\<#
+    }
+\#>
+			modelBuilder.Configurations.Add(new <#= IDENTITY_USER_CLASS_NAME #>Map());
+			modelBuilder.Configurations.Add(new <#= GetEntityNameFromTableName(ROLE_USER_RELATIONSHIP_TABLE_NAME) #>Map());
+        }
+    }
+}
+<#
+	/***************************************************
+	End For Context.tt
+	***************************************************/
+
+	//-----------------------------------------------------------------------------------------------------------------
+
+	/***************************************************
+	For Mapping.tt
+	***************************************************/
+	const string MAPPING_TT_FILE_NAME = "Mapping.tt";
+    manager.StartNewFile(MAPPING_TT_FILE_NAME + TMP_SUFFIX, "", REVERSE_ENGINEER_CODE_FIRST);
+#>
+\<#
+// Simplifying assumptions based on reverse engineer rules
+//  - No complex types
+//  - One entity container
+//  - No inheritance
+//  - Always have two navigation properties
+//  - All associations expose FKs (except many:many)
+\#>
+\<#@ template hostspecific="true" language="C#" \#>
+\<#@ include file="EF.Utility.CS.ttinclude" \#>\<#@
+ output extension=".cs" \#>\<#
+
+    var efHost = (EfTextTemplateHost)Host;
+    var code = new CodeGenerationTools(this);
+
+    if (!<# TrueInRangeExpress("efHost.EntityType.Name", true, USER_TABLE_NAME, ROLE_USER_RELATIONSHIP_TABLE_NAME, USER_CLAIM_TABLE_NAME, USER_LOGIN_TABLE_NAME, ROLE_TABLE_NAME); #>)
+    {        
+        
+	if (efHost.EntityFrameworkVersion >= new Version(4, 4))
+	{
+\#>
+using System.ComponentModel.DataAnnotations.Schema;
+\<#
+	}
+	else
+	{
+\#>
+using System.ComponentModel.DataAnnotations;
+\<#
+	}
+\#>
+using System.Data.Entity.ModelConfiguration;
+
+namespace \<#= code.EscapeNamespace(efHost.Namespace) \#>
+{
+    public class \<#= efHost.EntityType.Name \#>Map : EntityTypeConfiguration<\<#= efHost.EntityType.Name \#>>
+    {
+        public \<#= efHost.EntityType.Name \#>Map()
+        {
+            // Primary Key
+\<#
+    if (efHost.EntityType.KeyMembers.Count() == 1)
+    {
+\#>
+            this.HasKey(t => t.\<#= efHost.EntityType.KeyMembers.Single().Name \#>);
+\<#
+    }
+    else
+    {
+\#>
+            this.HasKey(t => new { \<#= string.Join(", ", efHost.EntityType.KeyMembers.Select(m => "t." + m.Name)) \#> });
+\<#
+    }
+\#>
+
+            // Properties
+\<#
+    foreach (var prop in efHost.EntityType.Properties)
+    {
+        var type = (PrimitiveType)prop.TypeUsage.EdmType;
+        var isKey = efHost.EntityType.KeyMembers.Contains(prop);
+        var storeProp = efHost.PropertyToColumnMappings[prop];
+        var sgpFacet = storeProp.TypeUsage.Facets.SingleOrDefault(f => f.Name == "StoreGeneratedPattern");
+        var storeGeneratedPattern = sgpFacet == null
+            ? StoreGeneratedPattern.None
+            : (StoreGeneratedPattern)sgpFacet.Value;
+            
+        var configLines = new List<string>();
+             
+        if (type.ClrEquivalentType == typeof(int)
+            || type.ClrEquivalentType == typeof(decimal)
+            || type.ClrEquivalentType == typeof(short)
+            || type.ClrEquivalentType == typeof(long))
+        {
+            if (isKey && storeGeneratedPattern != StoreGeneratedPattern.Identity)
+            {
+                configLines.Add(".HasDatabaseGeneratedOption(DatabaseGeneratedOption.None)");
+            }
+            else if ((!isKey || efHost.EntityType.KeyMembers.Count > 1) && storeGeneratedPattern == StoreGeneratedPattern.Identity)
+            {
+                configLines.Add(".HasDatabaseGeneratedOption(DatabaseGeneratedOption.Identity)");
+            }
+        }
+                    
+        if (type.ClrEquivalentType == typeof(string)
+            || type.ClrEquivalentType == typeof(byte[]))
+        {
+            if (!prop.Nullable)
+            {
+                configLines.Add(".IsRequired()");
+            }
+                
+            var unicodeFacet = (Facet)prop.TypeUsage.Facets.SingleOrDefault(f => f.Name == "IsUnicode");
+            if(unicodeFacet != null && !(bool)unicodeFacet.Value)
+            {
+                configLines.Add(".IsUnicode(false)");
+            }
+                
+            var fixedLengthFacet = (Facet)prop.TypeUsage.Facets.SingleOrDefault(f => f.Name == "FixedLength");
+            if (fixedLengthFacet != null && (bool)fixedLengthFacet.Value)
+            {
+                configLines.Add(".IsFixedLength()");
+            }
+                
+            var maxLengthFacet = (Facet)prop.TypeUsage.Facets.SingleOrDefault(f => f.Name == "MaxLength");
+            if (maxLengthFacet != null && !maxLengthFacet.IsUnbounded)
+            {
+                configLines.Add(string.Format(".HasMaxLength({0})", maxLengthFacet.Value));
+
+                if (storeGeneratedPattern == StoreGeneratedPattern.Computed
+                    && type.ClrEquivalentType == typeof(byte[])
+                    && (int)maxLengthFacet.Value == 8)
+                {
+                    configLines.Add(".IsRowVersion()");
+                }
+            }
+        }
+            
+        if(configLines.Any())
+        {
+\#>
+            this.Property(t => t.\<#= prop.Name \#>)
+                \<#= string.Join("\r\n                ", configLines) \#>;
+
+\<#
+        }
+    }
+
+    var tableSet = efHost.TableSet;
+    var tableName = (string)tableSet.MetadataProperties["Table"].Value
+        ?? tableSet.Name;
+    var schemaName = (string)tableSet.MetadataProperties["Schema"].Value;
+\#>
+            // Table & Column Mappings
+\<#
+    if (schemaName == "dbo" || string.IsNullOrWhiteSpace(schemaName))
+    {
+\#>
+            this.ToTable("\<#= tableName \#>");
+\<#
+    }
+    else
+    {
+\#>
+            this.ToTable("\<#= tableName \#>", "\<#= schemaName \#>");
+\<#
+    }
+
+    foreach (var property in efHost.EntityType.Properties)
+    {
+\#>
+            this.Property(t => t.\<#= property.Name \#>).HasColumnName("\<#= efHost.PropertyToColumnMappings[property].Name \#>");
+\<#
+    }
+        
+    // Find m:m relationshipsto configure 
+    var manyManyRelationships = efHost.EntityType.NavigationProperties
+        .Where(np => np.DeclaringType == efHost.EntityType
+            && np.ToEndMember.RelationshipMultiplicity == RelationshipMultiplicity.Many
+            && np.FromEndMember.RelationshipMultiplicity == RelationshipMultiplicity.Many
+            && np.RelationshipType.RelationshipEndMembers.First() == np.FromEndMember); // <- ensures we only configure from one end
+        
+    // Find FK relationships that this entity is the dependent of
+    var fkRelationships = efHost.EntityType.NavigationProperties
+        .Where(np => np.DeclaringType == efHost.EntityType
+            && ((AssociationType)np.RelationshipType).IsForeignKey
+            && ((AssociationType)np.RelationshipType).ReferentialConstraints.Single().ToRole == np.FromEndMember);
+        
+    if(manyManyRelationships.Any() || fkRelationships.Any())
+    {
+\#>
+
+            // Relationships
+\<#
+        foreach (var navProperty in manyManyRelationships)
+        {
+            var otherNavProperty = navProperty.ToEndMember.GetEntityType().NavigationProperties.Where(n => n.RelationshipType == navProperty.RelationshipType && n != navProperty).Single();
+            var association = (AssociationType)navProperty.RelationshipType;
+            var mapping = efHost.ManyToManyMappings[association];
+            var item1 = mapping.Item1;
+            var mappingTableName = (string)mapping.Item1.MetadataProperties["Table"].Value
+                ?? item1.Name;
+            var mappingSchemaName = (string)item1.MetadataProperties["Schema"].Value;
+
+            // Need to ensure that FKs are decalred in the same order as the PK properties on each principal type
+            var leftType = (EntityType)navProperty.DeclaringType;
+            var leftKeyMappings = mapping.Item2[navProperty.FromEndMember];
+            var leftColumns = string.Join(", ", leftType.KeyMembers.Select(m => "\"" + leftKeyMappings[m] + "\""));
+            var rightType = (EntityType)otherNavProperty.DeclaringType;
+            var rightKeyMappings = mapping.Item2[otherNavProperty.FromEndMember];
+            var rightColumns = string.Join(", ", rightType.KeyMembers.Select(m => "\"" + rightKeyMappings[m] + "\""));
+\#>
+            this.HasMany(t => t.\<#= code.Escape(navProperty) \#>)
+                .WithMany(t => t.\<#= code.Escape(otherNavProperty) \#>)
+                .Map(m =>
+                    {
+\<#
+            if (mappingSchemaName == "dbo" || string.IsNullOrWhiteSpace(mappingSchemaName))
+            {
+\#>
+                        m.ToTable("\<#= mappingTableName \#>");
+\<#
+            }
+            else
+            {
+\#>
+                        m.ToTable("\<#= mappingTableName \#>", "\<#= mappingSchemaName \#>");
+\<#
+            }
+\#>
+                        m.MapLeftKey(\<#= leftColumns \#>);
+                        m.MapRightKey(\<#= rightColumns \#>);
+                    });
+
+\<#
+        }
+            
+        foreach (var navProperty in fkRelationships)
+        {
+            var otherNavProperty = navProperty.ToEndMember.GetEntityType().NavigationProperties.Where(n => n.RelationshipType == navProperty.RelationshipType && n != navProperty).Single();
+            var association = (AssociationType)navProperty.RelationshipType;
+                
+            if (navProperty.ToEndMember.RelationshipMultiplicity == RelationshipMultiplicity.One)
+            {
+\#>
+            this.HasRequired(t => t.\<#= code.Escape(navProperty) \#>)
+\<#
+            }
+            else
+            {
+\#>
+            this.HasOptional(t => t.\<#= code.Escape(navProperty) \#>)
+\<#
+            }
+                
+            if(navProperty.FromEndMember.RelationshipMultiplicity == RelationshipMultiplicity.Many)
+            {
+\#>
+                .WithMany(t => t.\<#= code.Escape(otherNavProperty) \#>)
+\<#
+                if(association.ReferentialConstraints.Single().ToProperties.Count == 1)
+                {
+\#>
+                .HasForeignKey(d => d.\<#= association.ReferentialConstraints.Single().ToProperties.Single().Name \#>);
+\<#
+                }
+                else
+                {
+\#>
+                .HasForeignKey(d => new { \<#= string.Join(", ", association.ReferentialConstraints.Single().ToProperties.Select(p => "d." + p.Name)) \#> });
+\<#
+                }
+            }
+            else
+            {
+                // NOTE: We can assume that this is a required:optional relationship 
+                //       as EDMGen will never create an optional:optional relationship
+                // 		 because everything is one:many except PK-PK relationships which must be required
+\#>
+                .WithOptional(t => t.\<#= code.Escape(otherNavProperty) \#>);
+\<#	
+                }
+            }
+\#>
+
+\<#
+        }
+\#>
+        }
+    }
+}
+\<#
+}
+\#>
+<#
+	/***************************************************
+	End For Mapping.tt
+	***************************************************/
+
+
+//-----------------------------------------------------------------------------------------------------------------
+
+	/***************************************************
+	For Entity.tt
+	***************************************************/
+	const string ENTITY_TT_FILE_NAME = "Entity.tt";
+    manager.StartNewFile(ENTITY_TT_FILE_NAME + TMP_SUFFIX, "", REVERSE_ENGINEER_CODE_FIRST);
+#>
+\<#@ template hostspecific="true" language="C#" \#>
+\<#@ include file="EF.Utility.CS.ttinclude" \#>
+\<#@ output extension=".cs" \#>
+\<#
+
+    var efHost = (EfTextTemplateHost)Host;
+    var code = new CodeGenerationTools(this);
+
+    if (!<# TrueInRangeExpress("efHost.EntityType.Name", true, ROLE_USER_RELATIONSHIP_TABLE_NAME, USER_CLAIM_TABLE_NAME, USER_LOGIN_TABLE_NAME, ROLE_TABLE_NAME); #>)
+    {
+		var isUserTable = efHost.EntityType.Name == "<#= GetEntityNameFromTableName(USER_TABLE_NAME) #>";
+\#>
+using System;
+using System.Collections.Generic;
+using Microsoft.AspNet.Identity.EntityFramework;
+
+namespace \<#= code.EscapeNamespace(efHost.Namespace) \#>
+{
+    public partial class \<#= efHost.EntityType.Name \#>
+    {
+\<#
+    var collectionNavigations = efHost.EntityType.NavigationProperties.Where(
+        np => np.DeclaringType == efHost.EntityType
+            && np.ToEndMember.RelationshipMultiplicity == RelationshipMultiplicity.Many);
+
+    // Add a ctor to initialize any collections
+    if (collectionNavigations.Any())
+    {
+\#>
+        public \<#= code.Escape(efHost.EntityType) \#>()
+        {
+\<#
+        foreach (var navProperty in collectionNavigations)
+        {
+            var propName = code.Escape(navProperty);
+            var propType = code.Escape(navProperty.ToEndMember.GetEntityType());
+            if (isUserTable)
+            {
+                switch (propName)
+                {
+                    case "<#= GetEntityNameFromTableName(USER_CLAIM_TABLE_NAME) #>s":
+                        propName = "Claims";
+                        propType = "IdentityUserClaim";
+                        continue;
+                    case "<#= GetEntityNameFromTableName(ROLE_USER_RELATIONSHIP_TABLE_NAME) #>s":
+						propType = "IdentityUserRole";
+						continue;
+					case "<#= GetEntityNameFromTableName(ROLE_TABLE_NAME) #>s":
+                        propName = "Roles";
+						propType = "IdentityRole";
+                        continue;
+                    case "<#= GetEntityNameFromTableName(USER_LOGIN_TABLE_NAME) #>s":
+                        propName = "Logins";
+						propType = "IdentityUserLogin";
+                        continue;
+                }
+
+            }
+\#>
+            this.\<#= propName \#> = new List<\<#= propType \#>>();
+\<#
+        }
+\#>
+        }
+\<#
+    }
+        
+    foreach (var property in efHost.EntityType.Properties)
+    {
+        if (isUserTable)
+        {
+            var propName = code.Escape(property);
+            if (propName == "<#= GetEntityNameFromTableName(USER_TABLE_ID_COL_NAME) #>" || propName == "<#= GetEntityNameFromTableName(USER_TABLE_USER_NAME_COL_NAME) #>" 
+				|| propName == "<#= GetEntityNameFromTableName(USER_TABLE_PASSWORDHASH_COL_NAME) #>"
+                || propName == "<#= GetEntityNameFromTableName(USER_TABLE_SECURITYSTAMP_COL_NAME) #>" || propName == "<#= GetEntityNameFromTableName(USER_TABLE_DISCRIMINATOR_COL_NAME) #>")
+            {
+                continue;
+            }
+        }
+        var typeUsage = code.Escape(property.TypeUsage);
+
+        // Fix-up spatial types for EF6
+        if (efHost.EntityFrameworkVersion >= new Version(6, 0)
+            && typeUsage.StartsWith("System.Data.Spatial."))
+        {
+            typeUsage = typeUsage.Replace(
+                "System.Data.Spatial.",
+                "System.Data.Entity.Spatial.");
+        }
+\#>
+        \<#= Accessibility.ForProperty(property) \#> \<#= typeUsage \#> \<#= code.Escape(property) \#> { get; set; }
+\<#
+    }
+
+    foreach (var navProperty in efHost.EntityType.NavigationProperties.Where(np => np.DeclaringType == efHost.EntityType))
+    {
+		if (isUserTable)
+        {
+            var propName = code.Escape(navProperty);
+            if (propName == "<#= GetEntityNameFromTableName(USER_CLAIM_TABLE_NAME) #>s" || propName == "<#= GetEntityNameFromTableName(USER_LOGIN_TABLE_NAME) #>s" 
+				|| propName == "<#= GetEntityNameFromTableName(ROLE_USER_RELATIONSHIP_TABLE_NAME) #>s"
+				|| propName == "<#= GetEntityNameFromTableName(ROLE_TABLE_NAME) #>s")
+            {
+                continue;
+            }
+        }
+        if (navProperty.ToEndMember.RelationshipMultiplicity == RelationshipMultiplicity.Many)
+        {
+\#>
+        public virtual ICollection<\<#= code.Escape(navProperty.ToEndMember.GetEntityType()) \#>> \<#= code.Escape(navProperty) \#> { get; set; }
+\<#
+        }
+        else
+        {
+\#>
+        public virtual \<#= code.Escape(navProperty.ToEndMember.GetEntityType()) \#> \<#= code.Escape(navProperty) \#> { get; set; }
+\<#
+        }
+    }
+\#>
+    }
+}
+\<#
+    }
+\#>
+<#
+	/***************************************************
+	End For Entity.tt
+	***************************************************/
+
+    manager.Process();
+
+    var tmpFolder = Path.Combine(Path.GetTempPath(), "IdentityTTTemp\\", Path.GetRandomFileName());
+    if (!Directory.Exists(tmpFolder))
+    {
+        Directory.CreateDirectory(tmpFolder);
+    }
+
+    var codeFirstTTParent = reverseEngineerCodeFirstFolder.ProjectItems.Item(string.Format("{0}.txt4", Path.GetFileNameWithoutExtension(Host.TemplateFile)));
+    foreach (ProjectItem item in codeFirstTTParent.ProjectItems)
+    {
+        var file = item.FileNames[1];
+        var targetFileName = Path.GetFileName(file).Replace(TMP_SUFFIX, string.Empty);
+        var tmpFullFileName = Path.Combine(tmpFolder, targetFileName);
+        File.Copy(file, tmpFullFileName, true);
+        DeleteProjectItemIfExist(reverseEngineerCodeFirstFolder, targetFileName);
+        var targetFullFileName = Path.Combine(reverseEngineerCodeFirstFolderFullPath, targetFileName);
+        if (File.Exists(targetFullFileName))
+        {
+            File.Delete(targetFullFileName);
+        }
+        reverseEngineerCodeFirstFolder.ProjectItems.AddFromFileCopy(tmpFullFileName).Properties.Item("CustomTool").Value = string.Empty;
+    }
+	var times = 0;
+    while (true)
+    {
+        try
+        {
+            codeFirstTTParent.Delete();
+            break;
+        }
+        catch (Exception)
+        {
+			if (times >= 5) throw;
+        }
+        times++; 
+    }
+    
+    Directory.Delete(tmpFolder, true);
+#>
+
+<#+
+
+    private ProjectItem GetOrCreateSubFolder(Project parent, string subItemName)
+    {
+        return parent.ProjectItems.Cast<ProjectItem>().FirstOrDefault(pi => pi.Name == subItemName) ?? parent.ProjectItems.AddFolder(subItemName);
+    }
+
+    private ProjectItem GetOrCreateSubFolder(ProjectItem parent, string subItemName)
+    {
+        return parent.ProjectItems.Cast<ProjectItem>().FirstOrDefault(pi => pi.Name == subItemName) ?? parent.ProjectItems.AddFolder(subItemName);
+    }
+
+	/// <summary>
+	/// Writes a line to the build pane in visual studio and activates it
+	/// </summary>
+	/// <param name="fullPath">from the top level</param>
+	private ProjectItem GetOrCreateSubFolderFull(Project parent, string fullPath)
+	{
+	    var subs = fullPath.Split(new[] {"\\"}, StringSplitOptions.RemoveEmptyEntries);
+	    ProjectItem p = null;
+	    foreach (var sub in subs)
+	    {
+	        p = p == null ? GetOrCreateSubFolder(parent, sub) : GetOrCreateSubFolder(p, sub);
+	    }
+	    return p;
+	}
+
+    private bool DeleteProjectItemIfExist(ProjectItem parent, string subItemName)
+    {
+        foreach (ProjectItem itemInFolder in parent.ProjectItems)
+        {
+            if (itemInFolder.Name.ToLower() == subItemName.ToLower())
+            {
+                itemInFolder.Delete();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void TrueInRangeExpress(string varName, bool convertTableNameToEntityName, params string[] rangeArray)
+    {
+        Write("(");
+        var first = true;
+        foreach (var exp in rangeArray)
+        {
+            if (!first)
+            {
+                Write(" || ");
+            }
+            Write(string.Format("({0} == \"{1}\")", varName, (convertTableNameToEntityName ? GetEntityNameFromTableName(exp) : exp)));
+            first = false;
+        }
+		Write(")");
+    }
+
+	private string GetEntityNameFromTableName(string tableName)
+	{
+		return tableName.EndsWith("s") ? tableName.Substring(0, tableName.Length - 1) : tableName;
+	}
+#>
+

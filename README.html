@@ -1,0 +1,59 @@
+﻿<h1>AspNet.Identity.EntityFramework</h1>
+
+<ol>
+<li><p>AspNet.Identity.EntityFramework</p>
+
+<p>With the new release of MVC 5, Microsoft add AspNet.Identity Framwrork, but the AspNet.Identity.EntityFramework only support Code First Pattern, while for Databas/Model First Pattern, it is hard to code all the class by hand.<br/>
+so we add the AspNet.Identity.EntityFramework.tt to support this pattern. You can create you database first and then use this T4 template to automaticly generate the AspNet.Identity compatible classes.<br/>
+There are some limitions:</p>
+
+<p>1). The table for IdentityRole, IdentityUserClaim, IdentityUserLogin and IdentityUserRole should be same as default schema from AspNet.Identity.EntityFramework (you can use database.init.sql to create the basic schema if you don't konw the schema of the AspNet.Identity.EntityFramework default database).</p>
+
+<p>2). you can add more columns to the user table but don't remove any default columns from the user table.</p></li>
+<li><p>Steps:</p>
+
+<p>1). Install EF Power Tools (http://visualstudiogallery.msdn.microsoft.com/72a60b14-1581-4b9b-89f2-846072eff19d)</p>
+
+<p>2). Add the T4 template from the NuGet</p>
+
+<p>3). Run database.init.sql if you have not a databse yet</p>
+
+<p>3). Update the const in the T4 template for you need, he consts are:\</p>
+
+<p>const string USER_TABLE_NAME = "AspNetUsers";<br/>
+  const string USER_TABLE_ID_COL_NAME = "Id";<br/>
+  const string USER_TABLE_USER_NAME_COL_NAME = "UserName";<br/>
+  const string USER_TABLE_PASSWORDHASH_COL_NAME = "PasswordHash";<br/>
+  const string USER_TABLE_SECURITYSTAMP_COL_NAME = "SecurityStamp";<br/>
+  const string USER_TABLE_DISCRIMINATOR_COL_NAME = "Discriminator";<br/>
+  const string IDENTITY_USER_CLASS_NAME = "IdentityUser";<br/>
+  //IdentityUser Mapping<br/>
+  const string ROLE_USER_RELATIONSHIP_TABLE_NAME = "AspNetUserRoles";<br/>
+  const string ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME = "UserId";<br/>
+  const string ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME = "RoleId";<br/>
+  //IdentityUserClaim<br/>
+  const string USER_CLAIM_TABLE_NAME = "AspNetUserClaims";<br/>
+  const string USER_CLAIM_TABLE_ID_COL_NAME = "Id";<br/>
+  const string USER_CLAIM_TABLE_CLAIM_TYPE_COL_NAME = "ClaimType";<br/>
+  const string USER_CLAIM_TABLE_CLAIM_VALUE_COL_NAME = "ClaimValue";<br/>
+  const string USER_CLAIM_TABLE_USER_ID_FK_COL_NAME = "UserId";<br/>
+  //IdentityUserLogin<br/>
+  const string USER_LOGIN_TABLE_NAME = "AspNetUserLogins";<br/>
+  const string USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_NAME = "LoginProvider";<br/>
+  const string USER_LOGIN_TABLE_PROVIDER_KEY_COL_NAME = "ProviderKey";<br/>
+  const string USER_LOGIN_TABLE_USER_ID_COL_NAME = "UserId";<br/>
+  //IdentityRole<br/>
+  const string ROLE_TABLE_NAME = "AspNetRoles";<br/>
+  const string ROLE_TABLE_ID_COL_NAME = "Id";<br/>
+  const string ROLE_TABLE_NAME_COL_NAME = "Name";</p>
+
+<p>//Path<br/>
+  const string ENTITY_SUB_NAMESPACE = "Models";<br/>
+  const string ENTITY_MAPPING_SUB_NAMESPACE = "Models.Mapping";</p>
+
+<p>4).Run the T4 tempalte</p>
+
+<ol>
+<li>Right click on the project, and selecet Entity Framework/Revise Engineer Code First</li>
+</ol></li>
+</ol>
