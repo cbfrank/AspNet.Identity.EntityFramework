@@ -350,7 +350,7 @@ namespace <#= entityNamespace #>
     {
         static \<#= efHost.EntityContainer.Name \#>()
         {
-            Database.SetInitializer<\<#= efHost.EntityContainer.Name \#>>(null);
+            System.Data.Entity.Database.SetInitializer<\<#= efHost.EntityContainer.Name \#>>(null);
         }
 
         public \<#= efHost.EntityContainer.Name \#>()
