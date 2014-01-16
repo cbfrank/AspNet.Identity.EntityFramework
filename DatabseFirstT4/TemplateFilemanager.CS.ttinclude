@@ -1008,8 +1008,8 @@ public class VSHelper
 	
 	public static string GetProjectItemFullPath(EnvDTE.ProjectItem item)
 	{
-		if (item == null)
-			return null;
+		if (item == null || item.Properties == null)
+	        return null;
 
 		return item.Properties.Item("FullPath").Value.ToString();
 	}
