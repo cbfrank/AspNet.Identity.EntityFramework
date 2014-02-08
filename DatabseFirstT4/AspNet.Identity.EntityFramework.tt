@@ -1,4 +1,4 @@
-﻿<#@ template debug="true" hostspecific="true" language="C#" #>
+﻿<#@ template debug="false" hostspecific="true" language="C#" #>
 <#@ include file="TemplateFilemanager.CS.ttinclude" #>
 <#@ assembly name="System.Core" #>
 <#@ import namespace="System.IO" #>
@@ -685,7 +685,10 @@ namespace \<#= code.EscapeNamespace(efHost.Namespace) \#>
 \<#
         }
 \#>
+			OtherMap();
         }
+
+		partial void OtherMap();
     }
 }
 \<#
