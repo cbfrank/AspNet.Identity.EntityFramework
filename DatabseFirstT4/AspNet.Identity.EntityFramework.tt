@@ -452,7 +452,7 @@ using System.Data.Entity.ModelConfiguration;
 
 namespace \<#= code.EscapeNamespace(efHost.Namespace) \#>
 {
-    public class \<#= efHost.EntityType.Name \#>Map : EntityTypeConfiguration<\<#= efHost.EntityType.Name \#>>
+    public partial class \<#= efHost.EntityType.Name \#>Map : EntityTypeConfiguration<\<#= efHost.EntityType.Name \#>>
     {
         public \<#= efHost.EntityType.Name \#>Map()
         {
