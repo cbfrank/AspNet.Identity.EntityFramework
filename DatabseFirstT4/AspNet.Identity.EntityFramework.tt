@@ -777,12 +777,12 @@ namespace \<#= code.EscapeNamespace(efHost.Namespace) \#>
         
     foreach (var property in efHost.EntityType.Properties)
     {
+		var propName = code.Escape(property);
         if (isUserTable)
         {
-            var propName = code.Escape(property);
-            if (propName == "<#= GetEntityNameFromTableName(USER_TABLE_ID_COL_NAME) #>" || propName == "<#= GetEntityNameFromTableName(USER_TABLE_USER_NAME_COL_NAME) #>" 
-				|| propName == "<#= GetEntityNameFromTableName(USER_TABLE_PASSWORDHASH_COL_NAME) #>"
-                || propName == "<#= GetEntityNameFromTableName(USER_TABLE_SECURITYSTAMP_COL_NAME) #>" || propName == "<#= GetEntityNameFromTableName(USER_TABLE_DISCRIMINATOR_COL_NAME) #>")
+            if (propName == "<#= USER_TABLE_ID_COL_NAME #>" || propName == "<#= USER_TABLE_USER_NAME_COL_NAME #>" 
+				|| propName == "<#= USER_TABLE_PASSWORDHASH_COL_NAME #>"
+                || propName == "<#= USER_TABLE_SECURITYSTAMP_COL_NAME #>" || propName == "<#= USER_TABLE_DISCRIMINATOR_COL_NAME #>")
             {
                 continue;
             }
@@ -798,7 +798,7 @@ namespace \<#= code.EscapeNamespace(efHost.Namespace) \#>
                 "System.Data.Entity.Spatial.");
         }
 \#>
-        \<#= Accessibility.ForProperty(property) \#> \<#= typeUsage \#> \<#= code.Escape(property) \#> { get; set; }
+        \<#= Accessibility.ForProperty(property) \#> \<#= typeUsage \#> \<#= propName \#> { get; set; }
 \<#
     }
 
@@ -828,6 +828,23 @@ namespace \<#= code.EscapeNamespace(efHost.Namespace) \#>
         }
     }
 \#>
+		public void Copy(\<#= efHost.EntityType.Name \#> source)
+		{
+\<#
+
+	foreach (var property in efHost.EntityType.Properties)
+    {
+		var propName = code.Escape(property);
+		if (isUserTable && propName == "<#= USER_TABLE_DISCRIMINATOR_COL_NAME #>" )
+        {
+			continue;
+		}
+\#>
+			\<#= propName \#> = source.\<#= propName \#>;
+\<#		
+	}
+\#>
+		}
     }
 }
 \<#
