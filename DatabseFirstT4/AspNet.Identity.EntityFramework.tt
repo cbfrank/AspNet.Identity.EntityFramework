@@ -25,17 +25,43 @@
 
     #endregion
 
+    const int IDENTITY_LIB_VERSION = 1;
+
 	/**************************************************
 	Const Definitions
 	***************************************************/
 	//IdentityUser
 	const string USER_TABLE_NAME = "AspNetUsers";
     const string USER_TABLE_ID_COL_NAME = "Id";
+    const string USER_TABLE_ID_COL_TYPE = "string";
     const string USER_TABLE_USER_NAME_COL_NAME = "UserName";
-	const string USER_TABLE_PASSWORDHASH_COL_NAME = "PasswordHash";
-	const string USER_TABLE_SECURITYSTAMP_COL_NAME = "SecurityStamp";
-	const string USER_TABLE_DISCRIMINATOR_COL_NAME = "Discriminator";
     const string IDENTITY_USER_CLASS_NAME = "IdentityUser";
+    var userColMappingDict = new Dictionary<string, Tuple<string, bool>>(); //key is the property name in IdentityUser class, value is the [0]: corresponding column name in table, [1]: is required
+    userColMappingDict["PasswordHash"] = new Tuple<string, bool>("PasswordHash", false);
+    userColMappingDict["SecurityStamp"] = new Tuple<string, bool>("SecurityStamp", false);
+    switch (IDENTITY_LIB_VERSION)
+    {
+        case 1:
+        {
+            userColMappingDict["Discriminator"] = new Tuple<string, bool>("Discriminator", true);
+            break;
+        }
+        case 2:
+        {
+            userColMappingDict["Email"] = new Tuple<string, bool>("Email", false);
+            userColMappingDict["EmailConfirmed"] = new Tuple<string, bool>("EmailConfirmed", true);
+			userColMappingDict["PhoneNumber"] = new Tuple<string, bool>("PhoneNumber", false);
+            userColMappingDict["PhoneNumberConfirmed"] = new Tuple<string, bool>("PhoneNumberConfirmed", true);
+			userColMappingDict["TwoFactorEnabled"] = new Tuple<string, bool>("TwoFactorEnabled", true);
+            userColMappingDict["LockoutEndDateUtc"] = new Tuple<string, bool>("LockoutEndDateUtc", false);
+			userColMappingDict["LockoutEnabled"] = new Tuple<string, bool>("LockoutEnabled", true);
+			userColMappingDict["AccessFailedCount"] = new Tuple<string, bool>("AccessFailedCount", true);
+            break;
+        }
+		default:
+		throw new NotSupportedException("Unknown Identity Version");
+    }
+	
 	//IdentityUser Mapping
 	const string ROLE_USER_RELATIONSHIP_TABLE_NAME = "AspNetUserRoles";
 	const string ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME = "UserId";
@@ -94,7 +120,7 @@ namespace <#= entityNamespace #>
 	***************************************************/
     foreach (var table in new[] {USER_TABLE_NAME, IDENTITY_USER_CLASS_NAME})
     {
-        manager.StartNewFile(table + ".Map.cs");
+        manager.StartNewFile(table.Replace("<", "-").Replace(">", "-") + ".Map.cs");
 #>
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity.ModelConfiguration;
