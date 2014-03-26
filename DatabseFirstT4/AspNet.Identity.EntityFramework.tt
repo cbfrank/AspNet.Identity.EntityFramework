@@ -25,7 +25,7 @@
 
     #endregion
 
-    const int IDENTITY_LIB_VERSION = 1;
+    const int IDENTITY_LIB_VERSION = 2;
 
 	/**************************************************
 	Const Definitions
@@ -33,7 +33,6 @@
 	//IdentityUser
 	const string USER_TABLE_NAME = "AspNetUsers";
     const string USER_TABLE_ID_COL_NAME = "Id";
-    const string USER_TABLE_ID_COL_TYPE = "string";
     const string USER_TABLE_USER_NAME_COL_NAME = "UserName";
     const string IDENTITY_USER_CLASS_NAME = "IdentityUser";
     var userColMappingDict = new Dictionary<string, Tuple<string, bool>>(); //key is the property name in IdentityUser class, value is the [0]: corresponding column name in table, [1]: is required
@@ -147,9 +146,25 @@ namespace <#= entityMappingNamespace #>
             this.ToTable("<#= USER_TABLE_NAME #>");
             this.Property(t => t.Id).HasColumnName("<#= USER_TABLE_ID_COL_NAME #>");
             this.Property(t => t.UserName).HasColumnName("<#= USER_TABLE_USER_NAME_COL_NAME #>");
-            this.Property(t => t.PasswordHash).HasColumnName("<#= USER_TABLE_PASSWORDHASH_COL_NAME #>");
-            this.Property(t => t.SecurityStamp).HasColumnName("<#= USER_TABLE_SECURITYSTAMP_COL_NAME #>");            
 
+<#
+        foreach (var colMapping in userColMappingDict)
+        {
+#>
+			this.Property(t => t.<#= colMapping.Key #>)
+<#
+            if (colMapping.Value.Item2)
+            {
+#>
+				.IsRequired()
+<#                
+            }
+#>
+				.HasColumnName("<#= colMapping.Value.Item1 #>");
+
+<#            
+        }
+#>            
             // Relationships
             this.HasMany(t => t.Roles)
                 .WithMany()
@@ -159,10 +174,42 @@ namespace <#= entityMappingNamespace #>
                     m.MapLeftKey("<#= ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME #>");
                     m.MapRightKey("<#= ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME #>");
                 });
-
+							
+<#
+    switch (IDENTITY_LIB_VERSION)
+    {
+        case 1:
+        {
+#>
 			this.HasMany(t => t.Claims)
                 .WithRequired(<#= table == IDENTITY_USER_CLASS_NAME ? "c => c.User" : String.Empty #>)
                 .Map(m => m.MapKey("<#= USER_CLAIM_TABLE_USER_ID_FK_COL_NAME #>"));
+
+			this.HasMany(t => t.Logins)
+                .WithRequired(l => l.User)
+                .Map(m => m.MapKey("<#= USER_LOGIN_TABLE_USER_ID_COL_NAME #>"));
+<#
+            break;
+        }
+        case 2:
+        {
+#>
+			this.HasMany(t => t.Claims)
+                .WithRequired()
+                .Map(m => m.MapKey("<#= USER_CLAIM_TABLE_USER_ID_FK_COL_NAME #>"));
+
+			this.HasMany(t => t.Logins)
+                .WithRequired()
+                .Map(m => m.MapKey("<#= USER_LOGIN_TABLE_USER_ID_COL_NAME #>"));
+<#
+            break;
+        }
+		default:
+        {
+            throw new NotSupportedException();
+        }
+    }
+#>
 
 			OtherMap();
         }
@@ -201,13 +248,33 @@ namespace <#= entityMappingNamespace #>
             this.ToTable("<#= USER_CLAIM_TABLE_NAME #>");
             this.Property(t => t.Id).HasColumnName("<#= USER_CLAIM_TABLE_ID_COL_NAME #>");
             this.Property(t => t.ClaimType).HasColumnName("<#= USER_CLAIM_TABLE_CLAIM_TYPE_COL_NAME #>");
-            this.Property(t => t.ClaimValue).HasColumnName("<#= USER_CLAIM_TABLE_CLAIM_VALUE_COL_NAME #>");            
-
-            // Relationships
+            this.Property(t => t.ClaimValue).HasColumnName("<#= USER_CLAIM_TABLE_CLAIM_VALUE_COL_NAME #>");
+<#
+    switch (IDENTITY_LIB_VERSION)
+    {
+        case 1:
+        {
+#>
+			// Relationships
             this.HasRequired(t => t.User)
                 .WithMany(t => t.Claims).Map(
                     m => m.MapKey("<#= USER_CLAIM_TABLE_USER_ID_FK_COL_NAME #>"));
-
+<#
+            break;
+        }
+        case 2:
+        {
+#>
+			this.Property(t => t.UserId).IsRequired().HasColumnName("<#= USER_CLAIM_TABLE_USER_ID_FK_COL_NAME #>");
+<#
+            break;
+        }
+		default:
+        {
+            throw new NotSupportedException();
+        }
+    }
+#>
         }
     }
 }
@@ -251,14 +318,33 @@ namespace <#= entityMappingNamespace #>
 
             // Table & Column Mappings
             this.ToTable("<#= USER_LOGIN_TABLE_NAME #>");
-            this.Property(t => t.UserId).HasColumnName("<#= USER_LOGIN_TABLE_USER_ID_COL_NAME #>");
+            this.Property(t => t.UserId).IsRequired().HasColumnName("<#= USER_LOGIN_TABLE_USER_ID_COL_NAME #>");
             this.Property(t => t.LoginProvider).HasColumnName("<#= USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_NAME #>");
             this.Property(t => t.ProviderKey).HasColumnName("<#= USER_LOGIN_TABLE_PROVIDER_KEY_COL_NAME #>");
 
-            // Relationships
+<#
+    switch (IDENTITY_LIB_VERSION)
+    {
+        case 1:
+        {
+#>
+			// Relationships
             this.HasRequired(t => t.User)
                 .WithMany(t => t.Logins)
                 .HasForeignKey(d => d.UserId);
+<#
+            break;
+        }
+        case 2:
+        {
+            break;
+        }
+		default:
+        {
+            throw new NotSupportedException();
+        }
+    }
+#>            
         }
     }
 }
@@ -329,12 +415,32 @@ namespace <#= entityMappingNamespace #>
 
             // Table & Column Mappings
             this.ToTable("<#= ROLE_USER_RELATIONSHIP_TABLE_NAME #>");
-            this.Property(t => t.UserId).HasColumnName("<#= ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME #>");
-            this.Property(t => t.RoleId).HasColumnName("<#= ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME #>");
+            this.Property(t => t.UserId).IsRequired().HasColumnName("<#= ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME #>");
+            this.Property(t => t.RoleId).IsRequired().HasColumnName("<#= ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME #>");
 
+<#
+    switch (IDENTITY_LIB_VERSION)
+    {
+        case 1:
+        {
+#>
 			//Relationship
 			this.HasRequired(t => t.User).WithMany(u => u.Roles).HasForeignKey(d => d.UserId);
             this.HasRequired(t => t.Role).WithMany().HasForeignKey(d => d.RoleId);
+<#
+            break;
+        }
+        case 2:
+        {
+            break;
+        }
+		default:
+        {
+            throw new NotSupportedException();
+        }
+    }
+#>         
+			
         }
     }
 }
@@ -807,8 +913,15 @@ namespace \<#= code.EscapeNamespace(efHost.Namespace) \#>
         if (isUserTable)
         {
             if (propName == "<#= USER_TABLE_ID_COL_NAME #>" || propName == "<#= USER_TABLE_USER_NAME_COL_NAME #>" 
-				|| propName == "<#= USER_TABLE_PASSWORDHASH_COL_NAME #>"
-                || propName == "<#= USER_TABLE_SECURITYSTAMP_COL_NAME #>" || propName == "<#= USER_TABLE_DISCRIMINATOR_COL_NAME #>")
+<#
+	foreach (var colMappint in userColMappingDict)
+	{
+#>
+				|| propName == "<#= colMappint.Value.Item1 #>"
+<#		
+	}
+#>
+				)
             {
                 continue;
             }
@@ -861,10 +974,17 @@ namespace \<#= code.EscapeNamespace(efHost.Namespace) \#>
 	foreach (var property in efHost.EntityType.Properties)
     {
 		var propName = code.Escape(property);
-		if (isUserTable && propName == "<#= USER_TABLE_DISCRIMINATOR_COL_NAME #>" )
+<#
+	if (IDENTITY_LIB_VERSION == 1)
+	{
+#>
+		if (isUserTable && propName == "Discriminator" )
         {
 			continue;
 		}
+<#
+	}
+#>		
 \#>
 			\<#= propName \#> = source.\<#= propName \#>;
 \<#		
