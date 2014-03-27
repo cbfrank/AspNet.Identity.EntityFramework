@@ -117,7 +117,19 @@ namespace <#= entityNamespace #>
 	/***************************************************
 	For IdentityUser's Table Mapping
 	***************************************************/
-    foreach (var table in new[] {USER_TABLE_NAME, IDENTITY_USER_CLASS_NAME})
+    string[] userTableMappings = null;
+    switch (IDENTITY_LIB_VERSION)
+    {
+        case 1:
+            userTableMappings = new[] {USER_TABLE_NAME, IDENTITY_USER_CLASS_NAME};
+            break;
+        case 2:
+            userTableMappings = new[] {USER_TABLE_NAME};
+            break;
+        default:
+            throw new NotImplementedException();
+    }
+    foreach (var table in userTableMappings)
     {
         manager.StartNewFile(table.Replace("<", "-").Replace(">", "-") + ".Map.cs");
 #>
@@ -164,8 +176,13 @@ namespace <#= entityMappingNamespace #>
 
 <#            
         }
-#>            
-            // Relationships
+
+		switch (IDENTITY_LIB_VERSION)
+		{
+			case 1:
+			{
+#>
+			// Relationships
             this.HasMany(t => t.Roles)
                 .WithMany()
                 .Map(m =>
@@ -174,13 +191,7 @@ namespace <#= entityMappingNamespace #>
                     m.MapLeftKey("<#= ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME #>");
                     m.MapRightKey("<#= ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME #>");
                 });
-							
-<#
-    switch (IDENTITY_LIB_VERSION)
-    {
-        case 1:
-        {
-#>
+
 			this.HasMany(t => t.Claims)
                 .WithRequired(<#= table == IDENTITY_USER_CLASS_NAME ? "c => c.User" : String.Empty #>)
                 .Map(m => m.MapKey("<#= USER_CLAIM_TABLE_USER_ID_FK_COL_NAME #>"));
@@ -189,26 +200,31 @@ namespace <#= entityMappingNamespace #>
                 .WithRequired(l => l.User)
                 .Map(m => m.MapKey("<#= USER_LOGIN_TABLE_USER_ID_COL_NAME #>"));
 <#
-            break;
-        }
-        case 2:
-        {
+				break;
+			}
+			case 2:
+			{
 #>
+			// Relationships
+            this.HasMany(t => t.Roles)
+                .WithRequired()
+                .HasForeignKey(ur => ur.UserId);
+
 			this.HasMany(t => t.Claims)
                 .WithRequired()
-                .Map(m => m.MapKey("<#= USER_CLAIM_TABLE_USER_ID_FK_COL_NAME #>"));
+                .HasForeignKey(uc => uc.UserId);
 
 			this.HasMany(t => t.Logins)
                 .WithRequired()
-                .Map(m => m.MapKey("<#= USER_LOGIN_TABLE_USER_ID_COL_NAME #>"));
+                .HasForeignKey(ul => ul.UserId);
 <#
-            break;
-        }
-		default:
-        {
-            throw new NotSupportedException();
-        }
-    }
+				break;
+			}
+			default:
+			{
+				throw new NotSupportedException();
+			}
+		}
 #>
 
 			OtherMap();
@@ -306,7 +322,8 @@ namespace <#= entityMappingNamespace #>
             // Properties
             this.Property(t => t.UserId)
                 .IsRequired()
-                .HasMaxLength(128);
+                .HasMaxLength(128)
+				.HasColumnName("<#= USER_LOGIN_TABLE_USER_ID_COL_NAME #>");
 
             this.Property(t => t.LoginProvider)
                 .IsRequired()
@@ -318,7 +335,6 @@ namespace <#= entityMappingNamespace #>
 
             // Table & Column Mappings
             this.ToTable("<#= USER_LOGIN_TABLE_NAME #>");
-            this.Property(t => t.UserId).IsRequired().HasColumnName("<#= USER_LOGIN_TABLE_USER_ID_COL_NAME #>");
             this.Property(t => t.LoginProvider).HasColumnName("<#= USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_NAME #>");
             this.Property(t => t.ProviderKey).HasColumnName("<#= USER_LOGIN_TABLE_PROVIDER_KEY_COL_NAME #>");
 
@@ -384,7 +400,24 @@ namespace <#= entityMappingNamespace #>
             // Table & Column Mappings
             this.ToTable("<#= ROLE_TABLE_NAME #>");
             this.Property(t => t.Id).HasColumnName("<#= ROLE_TABLE_ID_COL_NAME #>");
-            this.Property(t => t.Name).HasColumnName("<#= ROLE_TABLE_NAME_COL_NAME #>");			
+            this.Property(t => t.Name).HasColumnName("<#= ROLE_TABLE_NAME_COL_NAME #>");
+			
+<#
+    switch (IDENTITY_LIB_VERSION)
+    {
+        case 1:
+            break;
+        case 2:
+#>
+			this.HasMany(t => t.Users)
+                .WithRequired()
+                .HasForeignKey(ur => ur.RoleId);
+<#
+            break;
+        default:
+            throw new NotImplementedException();
+    }
+#>					
         }
     }
 }
@@ -530,8 +563,20 @@ namespace <#= entityNamespace #>
             modelBuilder.Configurations.Add(new \<#= set.ElementType.Name \#>Map());
 \<#
     }
+	const int IDENTITY_LIB_VERSION = <#= IDENTITY_LIB_VERSION #>;
+	switch (IDENTITY_LIB_VERSION)
+	{
+		case 1:
 \#>
 			modelBuilder.Configurations.Add(new <#= IDENTITY_USER_CLASS_NAME #>Map());
+\<#
+	        break;
+		case 2:
+	        break;
+		default:
+			throw new NotImplementedException();
+	}
+\#>
 			modelBuilder.Configurations.Add(new <#= GetEntityNameFromTableName(ROLE_USER_RELATIONSHIP_TABLE_NAME) #>Map());
         }
     }
