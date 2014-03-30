@@ -33,28 +33,32 @@
 	//IdentityUser
 	const string USER_TABLE_NAME = "AspNetUsers";
     const string USER_TABLE_ID_COL_NAME = "Id";
+	const string USER_TABLE_ROLE_TABLE_ID_COL_TYPE = "string";
+    const int USER_TABLE_ID_COL_MAX_LENGTH = 128;
     const string USER_TABLE_USER_NAME_COL_NAME = "UserName";
+	const int USER_TABLE_USER_NAME_COL_MAX_LENGTH = 256;
+    const string USER_TABLE_USER_NAME_INDEX_NAME = "UserNameIndex";
     const string IDENTITY_USER_CLASS_NAME = "IdentityUser";
-    var userColMappingDict = new Dictionary<string, Tuple<string, bool>>(); //key is the property name in IdentityUser class, value is the [0]: corresponding column name in table, [1]: is required
-    userColMappingDict["PasswordHash"] = new Tuple<string, bool>("PasswordHash", false);
-    userColMappingDict["SecurityStamp"] = new Tuple<string, bool>("SecurityStamp", false);
+    var userColMappingDict = new Dictionary<string, Tuple<string, bool, int?>>(); //key is the property name in IdentityUser class, value is the [0]: corresponding column name in table, [1]: is required
+    userColMappingDict["PasswordHash"] = new Tuple<string, bool, int?>("PasswordHash", false, null);
+    userColMappingDict["SecurityStamp"] = new Tuple<string, bool, int?>("SecurityStamp", false, null);
     switch (IDENTITY_LIB_VERSION)
     {
         case 1:
         {
-            userColMappingDict["Discriminator"] = new Tuple<string, bool>("Discriminator", true);
+            userColMappingDict["Discriminator"] = new Tuple<string, bool, int?>("Discriminator", true, null);
             break;
         }
         case 2:
         {
-            userColMappingDict["Email"] = new Tuple<string, bool>("Email", false);
-            userColMappingDict["EmailConfirmed"] = new Tuple<string, bool>("EmailConfirmed", true);
-			userColMappingDict["PhoneNumber"] = new Tuple<string, bool>("PhoneNumber", false);
-            userColMappingDict["PhoneNumberConfirmed"] = new Tuple<string, bool>("PhoneNumberConfirmed", true);
-			userColMappingDict["TwoFactorEnabled"] = new Tuple<string, bool>("TwoFactorEnabled", true);
-            userColMappingDict["LockoutEndDateUtc"] = new Tuple<string, bool>("LockoutEndDateUtc", false);
-			userColMappingDict["LockoutEnabled"] = new Tuple<string, bool>("LockoutEnabled", true);
-			userColMappingDict["AccessFailedCount"] = new Tuple<string, bool>("AccessFailedCount", true);
+            userColMappingDict["Email"] = new Tuple<string, bool, int?>("Email", false, 256);
+            userColMappingDict["EmailConfirmed"] = new Tuple<string, bool, int?>("EmailConfirmed", true, null);
+			userColMappingDict["PhoneNumber"] = new Tuple<string, bool, int?>("PhoneNumber", false, null);
+            userColMappingDict["PhoneNumberConfirmed"] = new Tuple<string, bool, int?>("PhoneNumberConfirmed", true, null);
+			userColMappingDict["TwoFactorEnabled"] = new Tuple<string, bool, int?>("TwoFactorEnabled", true, null);
+            userColMappingDict["LockoutEndDateUtc"] = new Tuple<string, bool, int?>("LockoutEndDateUtc", false, null);
+			userColMappingDict["LockoutEnabled"] = new Tuple<string, bool, int?>("LockoutEnabled", true, null);
+			userColMappingDict["AccessFailedCount"] = new Tuple<string, bool, int?>("AccessFailedCount", true, null);
             break;
         }
 		default:
@@ -74,12 +78,17 @@
 	//IdentityUserLogin
 	const string USER_LOGIN_TABLE_NAME = "AspNetUserLogins";
     const string USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_NAME = "LoginProvider";
+    const int USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_MAX_LENGTH = 128;
     const string USER_LOGIN_TABLE_PROVIDER_KEY_COL_NAME = "ProviderKey";
+    const int USER_LOGIN_TABLE_PROVIDER_KEY_COL_MAX_LENGTH = 128;
     const string USER_LOGIN_TABLE_USER_ID_COL_NAME = "UserId";
 	//IdentityRole
 	const string ROLE_TABLE_NAME = "AspNetRoles";
     const string ROLE_TABLE_ID_COL_NAME = "Id";
+	const int ROLE_TABLE_ID_COL_MAX_LENGTH = 128;
     const string ROLE_TABLE_NAME_COL_NAME = "Name";
+	const int ROLE_TABLE_NAME_COL_MAX_LENGTH = 256;
+    const string ROLE_TABLE_ROLE_NAME_INDEX_NAME = "RoleNameIndex";
 
 	//Path
     const string ENTITY_SUB_NAMESPACE = "Models";
@@ -134,6 +143,7 @@ namespace <#= entityNamespace #>
         manager.StartNewFile(table.Replace("<", "-").Replace(">", "-") + ".Map.cs");
 #>
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Data.Entity.Infrastructure.Annotations;
 using System.Data.Entity.ModelConfiguration;
 using Microsoft.AspNet.Identity.EntityFramework;
 
@@ -149,15 +159,24 @@ namespace <#= entityMappingNamespace #>
             // Properties
             this.Property(t => t.Id)
                 .IsRequired()
-                .HasMaxLength(128);
+<#
+		if (USER_TABLE_ROLE_TABLE_ID_COL_TYPE == "string")
+		{
+#>
+				.HasMaxLength(<#= USER_TABLE_ID_COL_MAX_LENGTH #>)
+<#            
+		}
+#>
+				.HasColumnName("<#= USER_TABLE_ID_COL_NAME #>");
+
 			this.Property(t => t.UserName)
                 .IsRequired()
-                .HasMaxLength(256);
+                .HasMaxLength(<#= USER_TABLE_USER_NAME_COL_MAX_LENGTH #>)
+				.HasColumnName("<#= USER_TABLE_USER_NAME_COL_NAME #>")
+				.HasColumnAnnotation("Index", new IndexAnnotation(new IndexAttribute("<#= USER_TABLE_USER_NAME_INDEX_NAME #>") {IsClustered = false, IsUnique = true}));
 
             // Table & Column Mappings
             this.ToTable("<#= USER_TABLE_NAME #>");
-            this.Property(t => t.Id).HasColumnName("<#= USER_TABLE_ID_COL_NAME #>");
-            this.Property(t => t.UserName).HasColumnName("<#= USER_TABLE_USER_NAME_COL_NAME #>");
 
 <#
         foreach (var colMapping in userColMappingDict)
@@ -169,6 +188,12 @@ namespace <#= entityMappingNamespace #>
             {
 #>
 				.IsRequired()
+<#                
+            }
+            if (colMapping.Value.Item3.HasValue)
+            {
+#>
+				.HasMaxLength(<#= colMapping.Value.Item3.Value #>)
 <#                
             }
 #>
@@ -281,7 +306,17 @@ namespace <#= entityMappingNamespace #>
         case 2:
         {
 #>
-			this.Property(t => t.UserId).IsRequired().HasColumnName("<#= USER_CLAIM_TABLE_USER_ID_FK_COL_NAME #>");
+			this.Property(t => t.UserId)
+				.IsRequired()
+<#
+		if (USER_TABLE_ROLE_TABLE_ID_COL_TYPE == "string")
+		{
+#>
+				.HasMaxLength(<#= USER_TABLE_ID_COL_MAX_LENGTH #>)
+<#            
+		}
+#>
+				.HasColumnName("<#= USER_CLAIM_TABLE_USER_ID_FK_COL_NAME #>");
 <#
             break;
         }
@@ -317,26 +352,33 @@ namespace <#= entityMappingNamespace #>
         public <#= GetEntityNameFromTableName(USER_LOGIN_TABLE_NAME) #>Map()
         {
             // Primary Key
-            this.HasKey(t => new { t.UserId, t.LoginProvider, t.ProviderKey });
+            this.HasKey(t => new { t.LoginProvider, t.ProviderKey, t.UserId });
 
             // Properties
             this.Property(t => t.UserId)
                 .IsRequired()
-                .HasMaxLength(128)
+<#
+		if (USER_TABLE_ROLE_TABLE_ID_COL_TYPE == "string")
+		{
+#>
+				.HasMaxLength(<#= USER_TABLE_ID_COL_MAX_LENGTH #>)
+<#            
+		}
+#>                
 				.HasColumnName("<#= USER_LOGIN_TABLE_USER_ID_COL_NAME #>");
 
             this.Property(t => t.LoginProvider)
                 .IsRequired()
-                .HasMaxLength(128);
+                .HasMaxLength(<#= USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_MAX_LENGTH #>)
+				.HasColumnName("<#= USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_NAME #>");
 
             this.Property(t => t.ProviderKey)
                 .IsRequired()
-                .HasMaxLength(128);
+                .HasMaxLength(<#= USER_LOGIN_TABLE_PROVIDER_KEY_COL_MAX_LENGTH #>)
+				.HasColumnName("<#= USER_LOGIN_TABLE_PROVIDER_KEY_COL_NAME #>");
 
             // Table & Column Mappings
             this.ToTable("<#= USER_LOGIN_TABLE_NAME #>");
-            this.Property(t => t.LoginProvider).HasColumnName("<#= USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_NAME #>");
-            this.Property(t => t.ProviderKey).HasColumnName("<#= USER_LOGIN_TABLE_PROVIDER_KEY_COL_NAME #>");
 
 <#
     switch (IDENTITY_LIB_VERSION)
@@ -377,6 +419,7 @@ namespace <#= entityMappingNamespace #>
 	manager.StartNewFile(ROLE_TABLE_NAME + ".Map.cs");
 #>
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Data.Entity.Infrastructure.Annotations;
 using System.Data.Entity.ModelConfiguration;
 using Microsoft.AspNet.Identity.EntityFramework;
 
@@ -392,15 +435,24 @@ namespace <#= entityMappingNamespace #>
             // Properties
             this.Property(t => t.Id)
                 .IsRequired()
-                .HasMaxLength(128);
+<#
+		if (USER_TABLE_ROLE_TABLE_ID_COL_TYPE == "string")
+		{
+#>
+				.HasMaxLength(<#= ROLE_TABLE_ID_COL_MAX_LENGTH #>)
+<#            
+		}
+#>
+				.HasColumnName("<#= ROLE_TABLE_ID_COL_NAME #>");
 
             this.Property(t => t.Name)
-                .IsRequired();
+                .IsRequired()
+                .HasMaxLength(<#= ROLE_TABLE_NAME_COL_MAX_LENGTH #>)
+				.HasColumnName("<#= ROLE_TABLE_NAME_COL_NAME #>")
+				.HasColumnAnnotation("Index", new IndexAnnotation(new IndexAttribute("<#= ROLE_TABLE_ROLE_NAME_INDEX_NAME #>") {IsClustered = false, IsUnique = true}));
 
             // Table & Column Mappings
             this.ToTable("<#= ROLE_TABLE_NAME #>");
-            this.Property(t => t.Id).HasColumnName("<#= ROLE_TABLE_ID_COL_NAME #>");
-            this.Property(t => t.Name).HasColumnName("<#= ROLE_TABLE_NAME_COL_NAME #>");
 			
 <#
     switch (IDENTITY_LIB_VERSION)
@@ -448,8 +500,28 @@ namespace <#= entityMappingNamespace #>
 
             // Table & Column Mappings
             this.ToTable("<#= ROLE_USER_RELATIONSHIP_TABLE_NAME #>");
-            this.Property(t => t.UserId).IsRequired().HasColumnName("<#= ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME #>");
-            this.Property(t => t.RoleId).IsRequired().HasColumnName("<#= ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME #>");
+            this.Property(t => t.UserId)
+				.IsRequired()
+<#
+		if (USER_TABLE_ROLE_TABLE_ID_COL_TYPE == "string")
+		{
+#>
+				.HasMaxLength(<#= USER_TABLE_ID_COL_MAX_LENGTH #>)
+<#            
+		}
+#>
+				.HasColumnName("<#= ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME #>");
+            this.Property(t => t.RoleId)
+				.IsRequired()
+<#
+		if (USER_TABLE_ROLE_TABLE_ID_COL_TYPE == "string")
+		{
+#>
+				.HasMaxLength(<#= ROLE_TABLE_ID_COL_MAX_LENGTH #>)
+<#            
+		}
+#>
+				.HasColumnName("<#= ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME #>");
 
 <#
     switch (IDENTITY_LIB_VERSION)
