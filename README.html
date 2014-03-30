@@ -1,10 +1,10 @@
-﻿<h1>AspNet.Identity.EntityFramework</h1>
+<h1>AspNet.Identity.EntityFramework</h1>
 
 <ol>
 <li><p>AspNet.Identity.EntityFramework</p>
 
-<p>With the new release of MVC 5, Microsoft add AspNet.Identity Framwrork, but the AspNet.Identity.EntityFramework only support Code First Pattern, while for Databas/Model First Pattern, it is hard to code all the class by hand.<br/>
-so we add the AspNet.Identity.EntityFramework.tt to support this pattern. You can create you database first and then use this T4 template to automaticly generate the AspNet.Identity compatible classes.<br/>
+<p>With the new release of MVC 5, Microsoft add AspNet.Identity Framwrork, but the AspNet.Identity.EntityFramework only support Code First Pattern, while for Databas/Model First Pattern, it is hard to code all the class by hand.
+so we add the AspNet.Identity.EntityFramework.tt to support this pattern. You can create you database first and then use this T4 template to automaticly generate the AspNet.Identity compatible classes.
 There are some limitions:</p>
 
 <p>1). The table for IdentityRole, IdentityUserClaim, IdentityUserLogin and IdentityUserRole should be same as default schema from AspNet.Identity.EntityFramework (you can use database.init.sql to create the basic schema if you don't konw the schema of the AspNet.Identity.EntityFramework default database).</p>
@@ -16,40 +16,83 @@ There are some limitions:</p>
 
 <p>2). Add the T4 template from the NuGet</p>
 
-<p>3). Run database.init.sql if you have not a databse yet</p>
+<p>3). Run database.init.sql if you have not a databse yet (For Asp.Net Identity Framwork 2.0, you should use database.init.2.0.sql)</p>
 
-<p>3). Update the const in the T4 template for you need, he consts are:\</p>
+<p>3). Update the const in the T4 template for you need, the consts are:
+    First you should set IDENTITY<em>LIB</em>VERSION to the version of Asp.Net Identity Framwork, currently, only 1 and 2 are supported.</p>
 
-<p>const string USER_TABLE_NAME = "AspNetUsers";<br/>
-  const string USER_TABLE_ID_COL_NAME = "Id";<br/>
-  const string USER_TABLE_USER_NAME_COL_NAME = "UserName";<br/>
-  const string USER_TABLE_PASSWORDHASH_COL_NAME = "PasswordHash";<br/>
-  const string USER_TABLE_SECURITYSTAMP_COL_NAME = "SecurityStamp";<br/>
-  const string USER_TABLE_DISCRIMINATOR_COL_NAME = "Discriminator";<br/>
-  const string IDENTITY_USER_CLASS_NAME = "IdentityUser";<br/>
-  //IdentityUser Mapping<br/>
-  const string ROLE_USER_RELATIONSHIP_TABLE_NAME = "AspNetUserRoles";<br/>
-  const string ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME = "UserId";<br/>
-  const string ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME = "RoleId";<br/>
-  //IdentityUserClaim<br/>
-  const string USER_CLAIM_TABLE_NAME = "AspNetUserClaims";<br/>
-  const string USER_CLAIM_TABLE_ID_COL_NAME = "Id";<br/>
-  const string USER_CLAIM_TABLE_CLAIM_TYPE_COL_NAME = "ClaimType";<br/>
-  const string USER_CLAIM_TABLE_CLAIM_VALUE_COL_NAME = "ClaimValue";<br/>
-  const string USER_CLAIM_TABLE_USER_ID_FK_COL_NAME = "UserId";<br/>
-  //IdentityUserLogin<br/>
-  const string USER_LOGIN_TABLE_NAME = "AspNetUserLogins";<br/>
-  const string USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_NAME = "LoginProvider";<br/>
-  const string USER_LOGIN_TABLE_PROVIDER_KEY_COL_NAME = "ProviderKey";<br/>
-  const string USER_LOGIN_TABLE_USER_ID_COL_NAME = "UserId";<br/>
-  //IdentityRole<br/>
-  const string ROLE_TABLE_NAME = "AspNetRoles";<br/>
-  const string ROLE_TABLE_ID_COL_NAME = "Id";<br/>
-  const string ROLE_TABLE_NAME_COL_NAME = "Name";</p>
+<pre><code>const int IDENTITY_LIB_VERSION = 2;
 
-<p>//Path<br/>
-  const string ENTITY_SUB_NAMESPACE = "Models";<br/>
-  const string ENTITY_MAPPING_SUB_NAMESPACE = "Models.Mapping";</p>
+
+/**************************************************
+Const Definitions
+***************************************************/
+//IdentityUser
+const string USER_TABLE_NAME = "AspNetUsers";
+const string USER_TABLE_ID_COL_NAME = "Id";
+const string USER_TABLE_ROLE_TABLE_ID_COL_TYPE = "string";
+const int USER_TABLE_ID_COL_MAX_LENGTH = 128;
+const string USER_TABLE_USER_NAME_COL_NAME = "UserName";
+const int USER_TABLE_USER_NAME_COL_MAX_LENGTH = 256;
+const string USER_TABLE_USER_NAME_INDEX_NAME = "UserNameIndex";
+const string IDENTITY_USER_CLASS_NAME = "IdentityUser";
+var userColMappingDict = new Dictionary&lt;string, Tuple&lt;string, bool, int?&gt;&gt;(); //key is the property name in IdentityUser class, value is the [0]: corresponding column name in table, [1]: is required
+userColMappingDict["PasswordHash"] = new Tuple&lt;string, bool, int?&gt;("PasswordHash", false, null);
+userColMappingDict["SecurityStamp"] = new Tuple&lt;string, bool, int?&gt;("SecurityStamp", false, null);
+switch (IDENTITY_LIB_VERSION)
+{
+    case 1:
+    {
+        userColMappingDict["Discriminator"] = new Tuple&lt;string, bool, int?&gt;("Discriminator", true, null);
+        break;
+    }
+    case 2:
+    {
+        userColMappingDict["Email"] = new Tuple&lt;string, bool, int?&gt;("Email", false, 256);
+        userColMappingDict["EmailConfirmed"] = new Tuple&lt;string, bool, int?&gt;("EmailConfirmed", true, null);
+        userColMappingDict["PhoneNumber"] = new Tuple&lt;string, bool, int?&gt;("PhoneNumber", false, null);
+        userColMappingDict["PhoneNumberConfirmed"] = new Tuple&lt;string, bool, int?&gt;("PhoneNumberConfirmed", true, null);
+        userColMappingDict["TwoFactorEnabled"] = new Tuple&lt;string, bool, int?&gt;("TwoFactorEnabled", true, null);
+        userColMappingDict["LockoutEndDateUtc"] = new Tuple&lt;string, bool, int?&gt;("LockoutEndDateUtc", false, null);
+        userColMappingDict["LockoutEnabled"] = new Tuple&lt;string, bool, int?&gt;("LockoutEnabled", true, null);
+        userColMappingDict["AccessFailedCount"] = new Tuple&lt;string, bool, int?&gt;("AccessFailedCount", true, null);
+        break;
+    }
+    default:
+    throw new NotSupportedException("Unknown Identity Version");
+}
+
+
+//IdentityUser Mapping
+const string ROLE_USER_RELATIONSHIP_TABLE_NAME = "AspNetUserRoles";
+const string ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME = "UserId";
+const string ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME = "RoleId";
+//IdentityUserClaim
+const string USER_CLAIM_TABLE_NAME = "AspNetUserClaims";
+const string USER_CLAIM_TABLE_ID_COL_NAME = "Id";
+const string USER_CLAIM_TABLE_CLAIM_TYPE_COL_NAME = "ClaimType";
+const string USER_CLAIM_TABLE_CLAIM_VALUE_COL_NAME = "ClaimValue";
+const string USER_CLAIM_TABLE_USER_ID_FK_COL_NAME = "UserId";
+//IdentityUserLogin
+const string USER_LOGIN_TABLE_NAME = "AspNetUserLogins";
+const string USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_NAME = "LoginProvider";
+const int USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_MAX_LENGTH = 128;
+const string USER_LOGIN_TABLE_PROVIDER_KEY_COL_NAME = "ProviderKey";
+const int USER_LOGIN_TABLE_PROVIDER_KEY_COL_MAX_LENGTH = 128;
+const string USER_LOGIN_TABLE_USER_ID_COL_NAME = "UserId";
+//IdentityRole
+const string ROLE_TABLE_NAME = "AspNetRoles";
+const string ROLE_TABLE_ID_COL_NAME = "Id";
+const int ROLE_TABLE_ID_COL_MAX_LENGTH = 128;
+const string ROLE_TABLE_NAME_COL_NAME = "Name";
+const int ROLE_TABLE_NAME_COL_MAX_LENGTH = 256;
+const string ROLE_TABLE_ROLE_NAME_INDEX_NAME = "RoleNameIndex";
+
+
+//Path
+const string ENTITY_SUB_NAMESPACE = "Models";
+const string ENTITY_MAPPING_SUB_NAMESPACE = "Models.Mapping";
+</code></pre>
 
 <p>4).Run the T4 tempalte</p>
 
