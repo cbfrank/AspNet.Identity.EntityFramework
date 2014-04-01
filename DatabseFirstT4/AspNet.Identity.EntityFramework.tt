@@ -38,7 +38,8 @@
     const string USER_TABLE_USER_NAME_COL_NAME = "UserName";
 	const int USER_TABLE_USER_NAME_COL_MAX_LENGTH = 256;
     const string USER_TABLE_USER_NAME_INDEX_NAME = "UserNameIndex";
-    const string IDENTITY_USER_CLASS_NAME = "IdentityUser";
+    const string IDENTITY_USER_BASE_CLASS_NAME = "IdentityUser";
+	const string IDENTITY_USER_CUSTOM_CLASS_NAME = "AspNetUser";
     var userColMappingDict = new Dictionary<string, Tuple<string, bool, int?>>(); //key is the property name in IdentityUser class, value is the [0]: corresponding column name in table, [1]: is required
     userColMappingDict["PasswordHash"] = new Tuple<string, bool, int?>("PasswordHash", false, null);
     userColMappingDict["SecurityStamp"] = new Tuple<string, bool, int?>("SecurityStamp", false, null);
@@ -69,12 +70,14 @@
 	const string ROLE_USER_RELATIONSHIP_TABLE_NAME = "AspNetUserRoles";
 	const string ROLE_USER_RELATIONSHIP_TABLE_USER_ID_COL_NAME = "UserId";
 	const string ROLE_USER_RELATIONSHIP_TABLE_ROLE_ID_COL_NAME = "RoleId";
+    const string ROLE_USER_RELATIONSHIP_CUSTOM_CLASS_NAME = "IdentityUserRole";
 	//IdentityUserClaim
 	const string USER_CLAIM_TABLE_NAME = "AspNetUserClaims";
     const string USER_CLAIM_TABLE_ID_COL_NAME = "Id";
     const string USER_CLAIM_TABLE_CLAIM_TYPE_COL_NAME = "ClaimType";
     const string USER_CLAIM_TABLE_CLAIM_VALUE_COL_NAME = "ClaimValue";
     const string USER_CLAIM_TABLE_USER_ID_FK_COL_NAME = "UserId";
+    const string USER_CLAIM_CUSTOM_CLASS_NAME = "IdentityUserClaim";
 	//IdentityUserLogin
 	const string USER_LOGIN_TABLE_NAME = "AspNetUserLogins";
     const string USER_LOGIN_TABLE_LOGIN_PROVIDER_COL_NAME = "LoginProvider";
@@ -82,6 +85,7 @@
     const string USER_LOGIN_TABLE_PROVIDER_KEY_COL_NAME = "ProviderKey";
     const int USER_LOGIN_TABLE_PROVIDER_KEY_COL_MAX_LENGTH = 128;
     const string USER_LOGIN_TABLE_USER_ID_COL_NAME = "UserId";
+	const string USER_LOGIN_CUSTOM_CLASS_NAME = "IdentityUserLogin";
 	//IdentityRole
 	const string ROLE_TABLE_NAME = "AspNetRoles";
     const string ROLE_TABLE_ID_COL_NAME = "Id";
@@ -89,6 +93,7 @@
     const string ROLE_TABLE_NAME_COL_NAME = "Name";
 	const int ROLE_TABLE_NAME_COL_MAX_LENGTH = 256;
     const string ROLE_TABLE_ROLE_NAME_INDEX_NAME = "RoleNameIndex";
+	const string ROLE_CUSTOM_CLASS_NAME = "IdentityRole";
 
 	//Path
     const string ENTITY_SUB_NAMESPACE = "Models";
@@ -104,14 +109,14 @@
 	/***************************************************
 	For IdentityUser's Table
 	***************************************************/
-    manager.StartNewFile(USER_TABLE_NAME + ".IdentityUser.cs");
+    manager.StartNewFile(IDENTITY_USER_CUSTOM_CLASS_NAME + ".IdentityUser.cs");
 #>
 using System;
 using Microsoft.AspNet.Identity.EntityFramework;
 
 namespace <#= entityNamespace #>
 {
-	public partial class <#= GetEntityNameFromTableName(USER_TABLE_NAME) #> : <#= IDENTITY_USER_CLASS_NAME #>
+	public partial class <#= IDENTITY_USER_CUSTOM_CLASS_NAME #> : <#= IDENTITY_USER_BASE_CLASS_NAME #>
 	{
 		
 	}
@@ -127,19 +132,23 @@ namespace <#= entityNamespace #>
 	For IdentityUser's Table Mapping
 	***************************************************/
     string[] userTableMappings = null;
+    string[] userTableClasses = null;
     switch (IDENTITY_LIB_VERSION)
     {
         case 1:
-            userTableMappings = new[] {USER_TABLE_NAME, IDENTITY_USER_CLASS_NAME};
+            userTableMappings = new[] {USER_TABLE_NAME, "IdentityUser"};
+            userTableClasses = new[] {IDENTITY_USER_CUSTOM_CLASS_NAME, "IdentityUser"};
             break;
         case 2:
-            userTableMappings = new[] {USER_TABLE_NAME};
+			userTableMappings = new[] {USER_TABLE_NAME};
+            userTableClasses = new[] {IDENTITY_USER_CUSTOM_CLASS_NAME};
             break;
         default:
             throw new NotImplementedException();
     }
-    foreach (var table in userTableMappings)
+    for (var i = 0; i < userTableClasses.Length; i++)
     {
+        var table = userTableMappings[i];
         manager.StartNewFile(table.Replace("<", "-").Replace(">", "-") + ".Map.cs");
 #>
 using System.ComponentModel.DataAnnotations.Schema;
@@ -149,7 +158,7 @@ using Microsoft.AspNet.Identity.EntityFramework;
 
 namespace <#= entityMappingNamespace #>
 {
-    public partial class <#= GetEntityNameFromTableName(table) #>Map : EntityTypeConfiguration<<#= GetEntityNameFromTableName(table) #>>
+    public partial class <#= GetEntityNameFromTableName(table) #>Map : EntityTypeConfiguration<<#= GetEntityNameFromTableName(userTableClasses[i]) #>>
     {
         public <#= GetEntityNameFromTableName(table) #>Map()
         {
@@ -218,7 +227,7 @@ namespace <#= entityMappingNamespace #>
                 });
 
 			this.HasMany(t => t.Claims)
-                .WithRequired(<#= table == IDENTITY_USER_CLASS_NAME ? "c => c.User" : String.Empty #>)
+                .WithRequired(<#= table == "IdentityUser" ? "c => c.User" : String.Empty #>)
                 .Map(m => m.MapKey("<#= USER_CLAIM_TABLE_USER_ID_FK_COL_NAME #>"));
 
 			this.HasMany(t => t.Logins)
@@ -278,7 +287,7 @@ using Microsoft.AspNet.Identity.EntityFramework;
 
 namespace <#= entityMappingNamespace #>
 {
-    public class <#= GetEntityNameFromTableName(USER_CLAIM_TABLE_NAME) #>Map : EntityTypeConfiguration<IdentityUserClaim>
+    public class <#= GetEntityNameFromTableName(USER_CLAIM_TABLE_NAME) #>Map : EntityTypeConfiguration<<#= GetEntityNameFromTableName(USER_CLAIM_CUSTOM_CLASS_NAME) #>>
     {
         public <#= GetEntityNameFromTableName(USER_CLAIM_TABLE_NAME) #>Map()
         {
@@ -347,7 +356,7 @@ using Microsoft.AspNet.Identity.EntityFramework;
 
 namespace <#= entityMappingNamespace #>
 {
-    public class <#= GetEntityNameFromTableName(USER_LOGIN_TABLE_NAME) #>Map : EntityTypeConfiguration<IdentityUserLogin>
+    public class <#= GetEntityNameFromTableName(USER_LOGIN_TABLE_NAME) #>Map : EntityTypeConfiguration<<#= GetEntityNameFromTableName(USER_LOGIN_CUSTOM_CLASS_NAME) #>>
     {
         public <#= GetEntityNameFromTableName(USER_LOGIN_TABLE_NAME) #>Map()
         {
@@ -425,7 +434,7 @@ using Microsoft.AspNet.Identity.EntityFramework;
 
 namespace <#= entityMappingNamespace #>
 {
-    public class <#= GetEntityNameFromTableName(ROLE_TABLE_NAME) #>Map : EntityTypeConfiguration<IdentityRole>
+    public class <#= GetEntityNameFromTableName(ROLE_TABLE_NAME) #>Map : EntityTypeConfiguration<<#= GetEntityNameFromTableName(ROLE_CUSTOM_CLASS_NAME) #>>
     {
         public <#= GetEntityNameFromTableName(ROLE_TABLE_NAME) #>Map()
         {
@@ -491,7 +500,7 @@ using Microsoft.AspNet.Identity.EntityFramework;
 
 namespace <#= entityMappingNamespace #>
 {
-    public class <#= GetEntityNameFromTableName(ROLE_USER_RELATIONSHIP_TABLE_NAME) #>Map : EntityTypeConfiguration<IdentityUserRole>
+    public class <#= GetEntityNameFromTableName(ROLE_USER_RELATIONSHIP_TABLE_NAME) #>Map : EntityTypeConfiguration<<#= GetEntityNameFromTableName(ROLE_USER_RELATIONSHIP_CUSTOM_CLASS_NAME) #>>
     {
         public <#= GetEntityNameFromTableName(ROLE_USER_RELATIONSHIP_TABLE_NAME) #>Map()
         {
@@ -602,17 +611,22 @@ namespace <#= entityNamespace #>
         {
 			case "<#= GetEntityNameFromTableName(USER_CLAIM_TABLE_NAME) #>":
 \#>
-		public DbSet<IdentityUserClaim> \<#= set.Name \#> { get; set; }
+		public DbSet<<#= GetEntityNameFromTableName(USER_CLAIM_CUSTOM_CLASS_NAME) #>> \<#= set.Name \#> { get; set; }
 \<#
                 break;
 			case "<#= GetEntityNameFromTableName(USER_LOGIN_TABLE_NAME) #>":
 \#>
-		public DbSet<IdentityUserLogin> \<#= set.Name \#> { get; set; }
+		public DbSet<<#= GetEntityNameFromTableName(USER_LOGIN_CUSTOM_CLASS_NAME) #>> \<#= set.Name \#> { get; set; }
 \<#
                 break;
 			case "<#= GetEntityNameFromTableName(ROLE_TABLE_NAME) #>":
 \#>
-		public DbSet<IdentityRole> \<#= set.Name \#> { get; set; }
+		public DbSet<<#= GetEntityNameFromTableName(ROLE_CUSTOM_CLASS_NAME) #>> \<#= set.Name \#> { get; set; }
+\<#
+                break;
+			case "<#= GetEntityNameFromTableName(USER_TABLE_NAME) #>":
+\#>
+		public DbSet<<#= GetEntityNameFromTableName(IDENTITY_USER_CUSTOM_CLASS_NAME) #>> \<#= set.Name \#> { get; set; }
 \<#
                 break;
 			case "<#= GetEntityNameFromTableName(ROLE_USER_RELATIONSHIP_TABLE_NAME) #>":
@@ -640,7 +654,7 @@ namespace <#= entityNamespace #>
 	{
 		case 1:
 \#>
-			modelBuilder.Configurations.Add(new <#= IDENTITY_USER_CLASS_NAME #>Map());
+			modelBuilder.Configurations.Add(new IdentityUserMap());
 \<#
 	        break;
 		case 2:
